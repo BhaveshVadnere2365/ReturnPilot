@@ -299,6 +299,24 @@ describe('customer workspace', () => {
     expect(screen.getAllByText('Submitted').length).toBeGreaterThan(0)
   })
 
+  it('does not use a seeded order ID as a request-history ID', async () => {
+    const seededOrder = { ...order, order_id: '00000000-0000-4000-8000-000000000101' }
+    api.searchOrders.mockResolvedValue({ matches: [seededOrder] })
+    api.getOrderDetails.mockResolvedValue(seededOrder)
+    render(<App />)
+    await screen.findByText('Demo Customer')
+
+    fireEvent.change(screen.getByRole('textbox', { name: 'Search orders by reference, product, or SKU' }), { target: { value: 'RP-10001' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Search orders' }))
+    await screen.findByText('Demo mug')
+    fireEvent.click(screen.getAllByRole('button', { name: 'Request history' })[0])
+
+    const requestId = screen.getByRole('textbox', { name: 'Request ID' })
+    expect(requestId.value).toBe('')
+    expect(screen.getByText(/Order IDs identify purchases and cannot be used to look up request history/)).toBeTruthy()
+    expect(api.getRequestHistory).not.toHaveBeenCalled()
+  })
+
   it('offers status reconciliation after an unconfirmed approval outcome', async () => {
     api.converse.mockResolvedValue({ ...toolResult({ order }), proposal: pendingProposal })
     api.approveProposal.mockResolvedValue({ proposal_id: 'proposal-1', status: 'unconfirmed' })
